@@ -1,6 +1,6 @@
 # Third-party notices
 
-Vector QR includes third-party QR encoding code. The original notices and licenses must be preserved in redistributed copies.
+QR generator includes third-party QR encoding code. The original notices and licenses must be preserved in redistributed copies.
 
 ## QRCode for JavaScript — Kazuhiko Arase
 
@@ -27,6 +27,6 @@ The UI specifies `Inter` in a system-font stack but **does not bundle or redistr
 
 **QR Code is a registered trademark of DENSO WAVE INCORPORATED.**
 
-Vector QR is an independent project, not affiliated with or endorsed by DENSO WAVE or Figma.
+QR generator is an independent project, not affiliated with or endorsed by DENSO WAVE or Figma.
 
 Official information: https://www.qrcode.com/en/faq.html
