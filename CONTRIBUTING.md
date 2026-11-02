@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to Vector QR.
+Thanks for contributing to QR generator.
 
 1. Open an issue before a significant feature change. Please preserve the approved UI proportions, avoid extra design elements and retain offline generation.
 2. Keep changes focused; include manual Figma reproduction steps for interface or SVG issues.
