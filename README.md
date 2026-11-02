@@ -1,4 +1,4 @@
-# Vector QR 0.1
+# QR generator 0.1
 
 **Offline-first vector QR code generator for Figma.** Generate QR codes, place editable vector layers on your canvas, or export transparent PNG and SVG files.
 
@@ -21,7 +21,7 @@
 2. Keep `manifest.json`, `code.js` and `ui.html` in the same local folder.
 3. Open **Figma Desktop** → **Plugins** → **Development** → **Import plugin from manifest**.
 4. Select `manifest.json` from the folder.
-5. Launch **Vector QR 0.1** from the Development plugins menu.
+5. Launch **QR generator 0.1** from the Development plugins menu.
 
 Figma does not install or automatically update development plugins directly from a GitHub URL. After pulling changes, restart the plugin in Figma. Publishing to Figma Community is a separate process.
 
