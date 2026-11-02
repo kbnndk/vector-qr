@@ -1,0 +1,16 @@
+# Editor/OS artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+# Dependencies and test artifacts
+node_modules/
+coverage/
+test-results/
+playwright-report/
+*.log
+__pycache__/
+# Local Figma design originals and screenshots not cleared for redistribution
+*.fig
+private/

@@ -1,0 +1,2284 @@
+<!doctype html><html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>QR генератор</title>
+<style>
+/* Vector QR 0.1 — single 480px design coordinate system.
+   The whole UI scales as one unit when the plugin window is smaller. */
+:root {
+  color-scheme: light;
+  --ease: cubic-bezier(.2,.8,.2,1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,body {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  background: #fff;
+  color: #000;
+  font-family: Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+button,input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,input:focus-visible {
+  outline: 2px solid #777;
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+body {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+#app {
+  width: 480px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: auto;
+  max-width: none;
+  overflow: visible;
+  transform-origin: top left;
+  transform: translate3d(var(--vqr-left,0px),0,0) scale(var(--vqr-scale,1));
+  will-change: transform;
+}
+
+.header {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+}
+
+.branding,.headActions {
+  display: flex;
+  align-items: center;
+}
+
+.branding {
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.brandicon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background: #000;
+  border-radius: 4px;
+  position: relative;
+}
+
+.brandicon:before,.brandicon:after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 1.5px solid #fff;
+  border-radius: 1px;
+  top: 4px;
+  left: 4px;
+  box-sizing: border-box;
+}
+
+.brandicon:after {
+  left: 11px;
+}
+
+.brandicon i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 1.5px solid white;
+  left: 4px;
+  top: 11px;
+  border-radius: 1px;
+}
+
+.headActions {
+  gap: 0;
+}
+
+.lang {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.lang button {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #c0c0c0;
+  font-size: 12px;
+}
+
+.lang button.active {
+  color: #000;
+}
+
+.tabs {
+  height: 28px;
+  display: flex;
+  justify-content: flex-start;
+  gap: 20px;
+  flex: none;
+}
+
+.tabs button {
+  border: 0;
+  background: #fff;
+  height: 28px;
+  width: 57px;
+  min-width: 0;
+  border-radius: 6px;
+  color: #000;
+  transition: background .18s var(--ease),color .18s var(--ease);
+  flex: 0 0 57px;
+  font-size: 12px;
+  line-height: 15px;
+  white-space: nowrap;
+  letter-spacing: 0;
+  padding: 0 1px;
+  overflow: visible;
+}
+
+.tabs button[data-type="text"],
+.tabs button[data-type="phone"] {
+  width: 56px;
+  flex-basis: 56px;
+}
+
+.tabs button.active {
+  background: #000;
+  color: #fff;
+}
+
+.field {
+  height: 36px;
+  flex: none;
+  border: 1px solid #000;
+  background: #efefef;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 18px;
+}
+
+.field input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  line-height: 20px;
+  font-size: 14px;
+}
+
+.field input::placeholder {
+  color: #000;
+  opacity: 1;
+}
+
+.clear {
+  border: 0;
+  background: none;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  padding: 0;
+}
+
+.clear:before,.clear:after {
+  content: "";
+  position: absolute;
+  width: 1px;
+  height: 14px;
+  background: #111;
+  left: 10px;
+  top: 3px;
+  transform: rotate(45deg);
+}
+
+.clear:after {
+  transform: rotate(-45deg);
+}
+
+.preview {
+  height: 440px;
+  flex: none;
+  border: 1px solid #000;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  overflow: hidden;
+}
+
+#qrCanvas {
+  display: block;
+  width: 320px;
+  height: 320px;
+  image-rendering: pixelated;
+  transition: opacity .14s ease;
+}
+
+.colors {
+  display: grid;
+  grid-template-columns: 133px 57px 133px 57px;
+  gap: 20px;
+  height: 56px;
+  flex: none;
+}
+
+.color-card {
+  border: 1px solid #000;
+  background: #efefef;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 10px 6px 21px;
+  overflow: hidden;
+  gap: 4px;
+}
+
+.color-card label {
+  font-size: 12px;
+  color: #000000;
+  white-space: nowrap;
+}
+
+.color-card input {
+  border: 0;
+  background: transparent;
+  outline: 0;
+  font-size: 14px;
+  font-weight: 500;
+  width: 103px;
+  padding: 0;
+  color: #000;
+}
+
+.color-swatch {
+  border: 1px solid #000;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.color-swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toggle-row {
+  height: 28px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  gap: 12px;
+}
+
+.toggle-title {
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.logo-box,.hole-box {
+  width: 440px;
+  flex: none;
+  border: 1px solid #000;
+  border-radius: 6px;
+  transition: opacity .2s var(--ease);
+  background: #fff;
+}
+
+.logo-box {
+  height: 150px;
+  padding: 10px;
+}
+
+.box-inner {
+  height: 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+}
+
+.file-button {
+  height: 62px;
+  width: 418px;
+  background: #000;
+  border: 0;
+  border-radius: 4px;
+  color: #fff;
+  text-align: left;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slider-block {
+  height: 47px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metric {
+  height: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #c5c5c5;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.metric output {
+  color: #c5c5c5;
+}
+
+.range {
+  width: 100%;
+  margin: 0;
+  display: block;
+  height: 24px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 2px;
+  /* The filled (black) part meets the thumb centre; the rest stays light gray. */
+  background: linear-gradient(to right,
+    #111 0px, #111 var(--range-fill, 0px),
+    #c9c9c9 var(--range-fill, 0px), #c9c9c9 100%);
+}
+
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: #111;
+  position: relative;
+  margin-top: -11px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.1);
+  transition: transform .12s;
+}
+
+.range:active::-webkit-slider-thumb {
+  transform: scale(1.06);
+}
+
+.range:disabled {
+  cursor: default;
+}
+
+.range:disabled::-webkit-slider-thumb {
+  background: #d5d5d5;
+}
+
+.hole-box {
+  height: 136px;
+  padding: 10px;
+}
+
+.hole-box .inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hole-box .slider-block {
+  height: 47px;
+}
+
+.inactive {
+  opacity: .28;
+  pointer-events: none;
+}
+
+.inactive .file-button {
+  cursor: default;
+}
+
+.inactive .range {
+  cursor: default;
+}
+
+.footer {
+  height: 144px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: none;
+  z-index: 2;
+  background: #fff;
+}
+
+.primary,.secondary {
+  height: 62px;
+  border-radius: 4px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .18s,color .18s,transform .18s var(--ease);
+}
+
+.primary {
+  background: #000;
+  color: #fff;
+  border: 1px solid #000;
+}
+
+.primary:hover,.file-button:hover {
+  background: #282828;
+}
+
+.primary:active,.secondary:active {
+  transform: scale(.992);
+}
+
+.secondary {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+}
+
+.secondary:hover {
+  background: #f3f3f3;
+}
+
+.export-row {
+  display: grid;
+  grid-template-columns: 210px 210px;
+  gap: 20px;
+}
+
+#fileInput {
+  display: none;
+}
+
+#notice {
+  pointer-events: none;
+  position: fixed;
+  z-index: 10;
+  bottom: 15px;
+  left: 20px;
+  right: 20px;
+  padding: 12px 14px;
+  background: #121212;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  transform: translateY(120%);
+  opacity: 0;
+  transition: transform .28s var(--ease),opacity .28s var(--ease);
+}
+
+#notice.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-content {
+  height: auto;
+  min-height: 0;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: visible;
+  overscroll-behavior: none;
+}
+
+.header,.tabs,.field {
+  flex-shrink: 0;
+}
+
+.logo-box .box-inner {
+  height: 128px;
+  gap: 19px;
+}
+
+/* Figma source: 57 × 28 track, 24 × 24 thumb, exact 2px inset.
+   Drawn in one SVG coordinate system so both states remain pixel-aligned
+   when the entire interface is scaled to fit the Figma plugin window. */
+.toggle-row .switch {
+  appearance: none;
+  display: block;
+  position: relative;
+  flex: 0 0 57px;
+  width: 57px;
+  height: 28px;
+  min-width: 57px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  line-height: 0;
+  outline-offset: 2px;
+}
+
+.toggle-row .switch svg {
+  display: block;
+  width: 57px;
+  height: 28px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.switch-track {
+  fill: #efefef;
+  stroke: #000;
+  stroke-width: 1;
+  transition: fill .2s var(--ease);
+}
+
+.switch-thumb {
+  fill: #fff;
+  transition: transform .2s var(--ease);
+}
+
+.switch.on .switch-track {
+  fill: #000;
+}
+
+.switch.on .switch-thumb {
+  transform: translateX(29px);
+}
+
+#qrCanvas.transparent {
+  background-color: #fff;
+  background-image: linear-gradient(45deg,#ececec 25%,transparent 25%),linear-gradient(-45deg,#ececec 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,#ececec 75%),linear-gradient(-45deg,transparent 75%,#ececec 75%);
+  background-size: 16px 16px;
+  background-position: 0 0,0 8px,8px -8px,-8px 0;
+}
+
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none;animation:none}}
+</style></head><body>
+<main id="app">
+ <header class="header"><div class="branding"><span class="brandicon"><i></i></span><span data-ru="QR генератор" data-en="QR generator">QR генератор</span></div><div class="headActions"><div class="lang"><button id="ru" class="active">Ру</button><button id="en">Eng</button></div></div></header>
+ <nav class="tabs" id="tabs" aria-label="Тип содержимого"><button class="active" data-type="url">URL</button><button data-type="text">Текст</button><button data-type="wifi">Wi-Fi</button><button data-type="sms">SMS</button><button data-type="phone">Телефон</button><button data-type="email">Email</button></nav>
+ <div class="field"><input id="content" type="text" placeholder="URL" aria-label="URL" spellcheck="false"/><button id="clear" class="clear" aria-label="Очистить"></button></div>
+ <div class="scroll-content" id="scrollContent">
+ <section class="preview" aria-label="Предпросмотр QR"><canvas id="qrCanvas" width="640" height="640"></canvas></section>
+ <section class="toggle-row" id="backgroundRow"><span class="toggle-title" id="noBackgroundTitle">Без фона</span><button id="noBackgroundToggle" class="switch" role="switch" aria-checked="false" aria-label="Без фона"><svg viewBox="0 0 57 28" aria-hidden="true" focusable="false"><rect class="switch-track" x="0.5" y="0.5" width="56" height="27" rx="5.5"/><rect class="switch-thumb" x="2" y="2" width="24" height="24" rx="4"/></svg></button></section>
+ <section class="colors"><div class="color-card"><label id="fgLabel" for="fgHex">Цвет QR</label><input id="fgHex" maxlength="7" value="#000000" spellcheck="false"/></div><div class="color-swatch" id="fgSwatch" style="background:#000000"><input id="fgPick" type="color" value="#000000" aria-label="Цвет QR"/></div><div class="color-card"><label id="bgLabel" for="bgHex">Цвет фона</label><input id="bgHex" maxlength="7" value="#FFFFFF" spellcheck="false"/></div><div class="color-swatch" id="bgSwatch" style="background:#FFFFFF"><input id="bgPick" type="color" value="#FFFFFF" aria-label="Цвет фона"/></div></section>
+ <section class="toggle-row"><span class="toggle-title" id="logoTitle">Добавить логотип</span><button id="logoToggle" class="switch on" role="switch" aria-checked="true" aria-label="Добавить логотип"><svg viewBox="0 0 57 28" aria-hidden="true" focusable="false"><rect class="switch-track" x="0.5" y="0.5" width="56" height="27" rx="5.5"/><rect class="switch-thumb" x="2" y="2" width="24" height="24" rx="4"/></svg></button></section>
+ <section class="logo-box" id="logoBox"><div class="box-inner"><button id="chooseLogo" class="file-button"><span id="logoFilename">Выбрать логотип.svg</span></button><div class="slider-block"><div class="metric"><span id="logoScaleLabel">Размер логотипа</span><output id="logoOutput">30%</output></div><input id="logoScale" class="range" type="range" min="5" max="45" value="30" step="1" aria-label="Размер логотипа"/></div></div></section>
+ <section class="toggle-row"><span class="toggle-title" id="holeTitle">Область под логотип</span><button id="holeToggle" class="switch" role="switch" aria-checked="false" aria-label="Область под логотип"><svg viewBox="0 0 57 28" aria-hidden="true" focusable="false"><rect class="switch-track" x="0.5" y="0.5" width="56" height="27" rx="5.5"/><rect class="switch-thumb" x="2" y="2" width="24" height="24" rx="4"/></svg></button></section>
+ <section class="hole-box inactive" id="holeBox"><div class="inner"><div class="slider-block"><div class="metric"><span id="holeWLabel">Ширина области под логотип</span><output id="holeWOutput">0</output></div><input id="holeW" class="range" type="range" min="0" max="50" step="1" value="0" disabled aria-label="Ширина области под логотип"/></div><div class="slider-block"><div class="metric"><span id="holeHLabel">Высота области под логотип</span><output id="holeHOutput">0</output></div><input id="holeH" class="range" type="range" min="0" max="40" step="1" value="0" disabled aria-label="Высота области под логотип"/></div></div></section>
+ </div>
+ <footer class="footer"><button class="primary" id="insert">Добавить QR-код на макет</button><div class="export-row"><button class="secondary" id="exportPng">Экспорт PNG</button><button class="secondary" id="exportSvg">Экспорт SVG</button></div></footer>
+</main><input id="fileInput" type="file" accept="image/svg+xml,.svg"/><div id="notice" role="status" aria-live="polite"></div>
+<script>/*
+ * VECTOR QR — QR encoding vendor bundle (Figma Plugin)
+ * QR library licensed under MIT; see LICENSE-QR.txt.
+ * QR encoding: QRCode for JavaScript by Kazuhiko Arase, MIT License.
+ * Source: qrcode-terminal vendor/QRCode, available in the Node.js npm distribution.
+ * Original license: Copyright (c) 2009 Kazuhiko Arase.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is furnished
+ * to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ */
+
+
+var QRMode = (function () {
+  var module = { exports: {} };
+module.exports = {
+    MODE_NUMBER :       1 << 0,
+    MODE_ALPHA_NUM :    1 << 1,
+    MODE_8BIT_BYTE :    1 << 2,
+    MODE_KANJI :        1 << 3
+};
+
+  return module.exports;
+})();
+
+var QRErrorCorrectLevel = (function () {
+  var module = { exports: {} };
+module.exports = {
+	L : 1,
+	M : 0,
+	Q : 3,
+	H : 2
+};
+
+
+  return module.exports;
+})();
+
+var QRMaskPattern = (function () {
+  var module = { exports: {} };
+module.exports = {
+	PATTERN000 : 0,
+	PATTERN001 : 1,
+	PATTERN010 : 2,
+	PATTERN011 : 3,
+	PATTERN100 : 4,
+	PATTERN101 : 5,
+	PATTERN110 : 6,
+	PATTERN111 : 7
+};
+
+  return module.exports;
+})();
+
+var QRMath = (function () {
+  var module = { exports: {} };
+var QRMath = {
+
+	glog : function(n) {
+	
+		if (n < 1) {
+			throw new Error("glog(" + n + ")");
+		}
+		
+		return QRMath.LOG_TABLE[n];
+	},
+	
+	gexp : function(n) {
+	
+		while (n < 0) {
+			n += 255;
+		}
+	
+		while (n >= 256) {
+			n -= 255;
+		}
+	
+		return QRMath.EXP_TABLE[n];
+	},
+	
+	EXP_TABLE : new Array(256),
+	
+	LOG_TABLE : new Array(256)
+
+};
+	
+for (var i = 0; i < 8; i++) {
+	QRMath.EXP_TABLE[i] = 1 << i;
+}
+for (var i = 8; i < 256; i++) {
+	QRMath.EXP_TABLE[i] = QRMath.EXP_TABLE[i - 4]
+		^ QRMath.EXP_TABLE[i - 5]
+		^ QRMath.EXP_TABLE[i - 6]
+		^ QRMath.EXP_TABLE[i - 8];
+}
+for (var i = 0; i < 255; i++) {
+	QRMath.LOG_TABLE[QRMath.EXP_TABLE[i] ] = i;
+}
+
+module.exports = QRMath;
+
+  return module.exports;
+})();
+
+var QRPolynomial = (function () {
+  var module = { exports: {} };
+
+function QRPolynomial(num, shift) {
+	if (num.length === undefined) {
+		throw new Error(num.length + "/" + shift);
+	}
+
+	var offset = 0;
+
+	while (offset < num.length && num[offset] === 0) {
+		offset++;
+	}
+
+	this.num = new Array(num.length - offset + shift);
+	for (var i = 0; i < num.length - offset; i++) {
+		this.num[i] = num[i + offset];
+	}
+}
+
+QRPolynomial.prototype = {
+
+	get : function(index) {
+		return this.num[index];
+	},
+	
+	getLength : function() {
+		return this.num.length;
+	},
+	
+	multiply : function(e) {
+	
+		var num = new Array(this.getLength() + e.getLength() - 1);
+	
+		for (var i = 0; i < this.getLength(); i++) {
+			for (var j = 0; j < e.getLength(); j++) {
+				num[i + j] ^= QRMath.gexp(QRMath.glog(this.get(i) ) + QRMath.glog(e.get(j) ) );
+			}
+		}
+	
+		return new QRPolynomial(num, 0);
+	},
+	
+	mod : function(e) {
+	
+		if (this.getLength() - e.getLength() < 0) {
+			return this;
+		}
+	
+		var ratio = QRMath.glog(this.get(0) ) - QRMath.glog(e.get(0) );
+	
+		var num = new Array(this.getLength() );
+		
+		for (var i = 0; i < this.getLength(); i++) {
+			num[i] = this.get(i);
+		}
+		
+		for (var x = 0; x < e.getLength(); x++) {
+			num[x] ^= QRMath.gexp(QRMath.glog(e.get(x) ) + ratio);
+		}
+	
+		// recursive call
+		return new QRPolynomial(num, 0).mod(e);
+	}
+};
+
+module.exports = QRPolynomial;
+
+  return module.exports;
+})();
+
+var QRRSBlock = (function () {
+  var module = { exports: {} };
+
+function QRRSBlock(totalCount, dataCount) {
+	this.totalCount = totalCount;
+	this.dataCount  = dataCount;
+}
+
+QRRSBlock.RS_BLOCK_TABLE = [
+
+	// L
+	// M
+	// Q
+	// H
+
+	// 1
+	[1, 26, 19],
+	[1, 26, 16],
+	[1, 26, 13],
+	[1, 26, 9],
+	
+	// 2
+	[1, 44, 34],
+	[1, 44, 28],
+	[1, 44, 22],
+	[1, 44, 16],
+
+	// 3
+	[1, 70, 55],
+	[1, 70, 44],
+	[2, 35, 17],
+	[2, 35, 13],
+
+	// 4		
+	[1, 100, 80],
+	[2, 50, 32],
+	[2, 50, 24],
+	[4, 25, 9],
+	
+	// 5
+	[1, 134, 108],
+	[2, 67, 43],
+	[2, 33, 15, 2, 34, 16],
+	[2, 33, 11, 2, 34, 12],
+	
+	// 6
+	[2, 86, 68],
+	[4, 43, 27],
+	[4, 43, 19],
+	[4, 43, 15],
+	
+	// 7		
+	[2, 98, 78],
+	[4, 49, 31],
+	[2, 32, 14, 4, 33, 15],
+	[4, 39, 13, 1, 40, 14],
+	
+	// 8
+	[2, 121, 97],
+	[2, 60, 38, 2, 61, 39],
+	[4, 40, 18, 2, 41, 19],
+	[4, 40, 14, 2, 41, 15],
+	
+	// 9
+	[2, 146, 116],
+	[3, 58, 36, 2, 59, 37],
+	[4, 36, 16, 4, 37, 17],
+	[4, 36, 12, 4, 37, 13],
+	
+	// 10		
+	[2, 86, 68, 2, 87, 69],
+	[4, 69, 43, 1, 70, 44],
+	[6, 43, 19, 2, 44, 20],
+	[6, 43, 15, 2, 44, 16],
+
+	// 11
+	[4, 101, 81],
+	[1, 80, 50, 4, 81, 51],
+	[4, 50, 22, 4, 51, 23],
+	[3, 36, 12, 8, 37, 13],
+
+	// 12
+	[2, 116, 92, 2, 117, 93],
+	[6, 58, 36, 2, 59, 37],
+	[4, 46, 20, 6, 47, 21],
+	[7, 42, 14, 4, 43, 15],
+
+	// 13
+	[4, 133, 107],
+	[8, 59, 37, 1, 60, 38],
+	[8, 44, 20, 4, 45, 21],
+	[12, 33, 11, 4, 34, 12],
+
+	// 14
+	[3, 145, 115, 1, 146, 116],
+	[4, 64, 40, 5, 65, 41],
+	[11, 36, 16, 5, 37, 17],
+	[11, 36, 12, 5, 37, 13],
+
+	// 15
+	[5, 109, 87, 1, 110, 88],
+	[5, 65, 41, 5, 66, 42],
+	[5, 54, 24, 7, 55, 25],
+	[11, 36, 12],
+
+	// 16
+	[5, 122, 98, 1, 123, 99],
+	[7, 73, 45, 3, 74, 46],
+	[15, 43, 19, 2, 44, 20],
+	[3, 45, 15, 13, 46, 16],
+
+	// 17
+	[1, 135, 107, 5, 136, 108],
+	[10, 74, 46, 1, 75, 47],
+	[1, 50, 22, 15, 51, 23],
+	[2, 42, 14, 17, 43, 15],
+
+	// 18
+	[5, 150, 120, 1, 151, 121],
+	[9, 69, 43, 4, 70, 44],
+	[17, 50, 22, 1, 51, 23],
+	[2, 42, 14, 19, 43, 15],
+
+	// 19
+	[3, 141, 113, 4, 142, 114],
+	[3, 70, 44, 11, 71, 45],
+	[17, 47, 21, 4, 48, 22],
+	[9, 39, 13, 16, 40, 14],
+
+	// 20
+	[3, 135, 107, 5, 136, 108],
+	[3, 67, 41, 13, 68, 42],
+	[15, 54, 24, 5, 55, 25],
+	[15, 43, 15, 10, 44, 16],
+
+	// 21
+	[4, 144, 116, 4, 145, 117],
+	[17, 68, 42],
+	[17, 50, 22, 6, 51, 23],
+	[19, 46, 16, 6, 47, 17],
+
+	// 22
+	[2, 139, 111, 7, 140, 112],
+	[17, 74, 46],
+	[7, 54, 24, 16, 55, 25],
+	[34, 37, 13],
+
+	// 23
+	[4, 151, 121, 5, 152, 122],
+	[4, 75, 47, 14, 76, 48],
+	[11, 54, 24, 14, 55, 25],
+	[16, 45, 15, 14, 46, 16],
+
+	// 24
+	[6, 147, 117, 4, 148, 118],
+	[6, 73, 45, 14, 74, 46],
+	[11, 54, 24, 16, 55, 25],
+	[30, 46, 16, 2, 47, 17],
+
+	// 25
+	[8, 132, 106, 4, 133, 107],
+	[8, 75, 47, 13, 76, 48],
+	[7, 54, 24, 22, 55, 25],
+	[22, 45, 15, 13, 46, 16],
+
+	// 26
+	[10, 142, 114, 2, 143, 115],
+	[19, 74, 46, 4, 75, 47],
+	[28, 50, 22, 6, 51, 23],
+	[33, 46, 16, 4, 47, 17],
+
+	// 27
+	[8, 152, 122, 4, 153, 123],
+	[22, 73, 45, 3, 74, 46],
+	[8, 53, 23, 26, 54, 24],
+	[12, 45, 15, 28, 46, 16],
+
+	// 28
+	[3, 147, 117, 10, 148, 118],
+	[3, 73, 45, 23, 74, 46],
+	[4, 54, 24, 31, 55, 25],
+	[11, 45, 15, 31, 46, 16],
+
+	// 29
+	[7, 146, 116, 7, 147, 117],
+	[21, 73, 45, 7, 74, 46],
+	[1, 53, 23, 37, 54, 24],
+	[19, 45, 15, 26, 46, 16],
+
+	// 30
+	[5, 145, 115, 10, 146, 116],
+	[19, 75, 47, 10, 76, 48],
+	[15, 54, 24, 25, 55, 25],
+	[23, 45, 15, 25, 46, 16],
+
+	// 31
+	[13, 145, 115, 3, 146, 116],
+	[2, 74, 46, 29, 75, 47],
+	[42, 54, 24, 1, 55, 25],
+	[23, 45, 15, 28, 46, 16],
+
+	// 32
+	[17, 145, 115],
+	[10, 74, 46, 23, 75, 47],
+	[10, 54, 24, 35, 55, 25],
+	[19, 45, 15, 35, 46, 16],
+
+	// 33
+	[17, 145, 115, 1, 146, 116],
+	[14, 74, 46, 21, 75, 47],
+	[29, 54, 24, 19, 55, 25],
+	[11, 45, 15, 46, 46, 16],
+
+	// 34
+	[13, 145, 115, 6, 146, 116],
+	[14, 74, 46, 23, 75, 47],
+	[44, 54, 24, 7, 55, 25],
+	[59, 46, 16, 1, 47, 17],
+
+	// 35
+	[12, 151, 121, 7, 152, 122],
+	[12, 75, 47, 26, 76, 48],
+	[39, 54, 24, 14, 55, 25],
+	[22, 45, 15, 41, 46, 16],
+
+	// 36
+	[6, 151, 121, 14, 152, 122],
+	[6, 75, 47, 34, 76, 48],
+	[46, 54, 24, 10, 55, 25],
+	[2, 45, 15, 64, 46, 16],
+
+	// 37
+	[17, 152, 122, 4, 153, 123],
+	[29, 74, 46, 14, 75, 47],
+	[49, 54, 24, 10, 55, 25],
+	[24, 45, 15, 46, 46, 16],
+
+	// 38
+	[4, 152, 122, 18, 153, 123],
+	[13, 74, 46, 32, 75, 47],
+	[48, 54, 24, 14, 55, 25],
+	[42, 45, 15, 32, 46, 16],
+
+	// 39
+	[20, 147, 117, 4, 148, 118],
+	[40, 75, 47, 7, 76, 48],
+	[43, 54, 24, 22, 55, 25],
+	[10, 45, 15, 67, 46, 16],
+
+	// 40
+	[19, 148, 118, 6, 149, 119],
+	[18, 75, 47, 31, 76, 48],
+	[34, 54, 24, 34, 55, 25],
+	[20, 45, 15, 61, 46, 16]
+];
+
+QRRSBlock.getRSBlocks = function(typeNumber, errorCorrectLevel) {
+	
+	var rsBlock = QRRSBlock.getRsBlockTable(typeNumber, errorCorrectLevel);
+	
+	if (rsBlock === undefined) {
+		throw new Error("bad rs block @ typeNumber:" + typeNumber + "/errorCorrectLevel:" + errorCorrectLevel);
+	}
+
+	var length = rsBlock.length / 3;
+	
+	var list = [];
+	
+	for (var i = 0; i < length; i++) {
+
+		var count = rsBlock[i * 3 + 0];
+		var totalCount = rsBlock[i * 3 + 1];
+		var dataCount  = rsBlock[i * 3 + 2];
+
+		for (var j = 0; j < count; j++) {
+			list.push(new QRRSBlock(totalCount, dataCount) );	
+		}
+	}
+	
+	return list;
+};
+
+QRRSBlock.getRsBlockTable = function(typeNumber, errorCorrectLevel) {
+
+	switch(errorCorrectLevel) {
+	case QRErrorCorrectLevel.L :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+	case QRErrorCorrectLevel.M :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+	case QRErrorCorrectLevel.Q :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+	case QRErrorCorrectLevel.H :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+	default :
+		return undefined;
+	}
+};
+
+module.exports = QRRSBlock;
+
+  return module.exports;
+})();
+
+var QRBitBuffer = (function () {
+  var module = { exports: {} };
+function QRBitBuffer() {
+	this.buffer = [];
+	this.length = 0;
+}
+
+QRBitBuffer.prototype = {
+
+	get : function(index) {
+		var bufIndex = Math.floor(index / 8);
+		return ( (this.buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+	},
+	
+	put : function(num, length) {
+		for (var i = 0; i < length; i++) {
+			this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+		}
+	},
+	
+	getLengthInBits : function() {
+		return this.length;
+	},
+	
+	putBit : function(bit) {
+	
+		var bufIndex = Math.floor(this.length / 8);
+		if (this.buffer.length <= bufIndex) {
+			this.buffer.push(0);
+		}
+	
+		if (bit) {
+			this.buffer[bufIndex] |= (0x80 >>> (this.length % 8) );
+		}
+	
+		this.length++;
+	}
+};
+
+module.exports = QRBitBuffer;
+
+  return module.exports;
+})();
+
+var QR8bitByte = (function () {
+  var module = { exports: {} };
+
+function QR8bitByte(data) {
+	this.mode = QRMode.MODE_8BIT_BYTE;
+	this.data = data;
+}
+
+QR8bitByte.prototype = {
+
+	getLength : function() {
+		return this.data.length;
+	},
+	
+	write : function(buffer) {
+		for (var i = 0; i < this.data.length; i++) {
+			// not JIS ...
+			buffer.put(this.data.charCodeAt(i), 8);
+		}
+	}
+};
+
+module.exports = QR8bitByte;
+
+  return module.exports;
+})();
+
+var QRUtil = (function () {
+  var module = { exports: {} };
+
+
+
+
+var QRUtil = {
+
+    PATTERN_POSITION_TABLE : [
+        [],
+        [6, 18],
+        [6, 22],
+        [6, 26],
+        [6, 30],
+        [6, 34],
+        [6, 22, 38],
+        [6, 24, 42],
+        [6, 26, 46],
+        [6, 28, 50],
+        [6, 30, 54],        
+        [6, 32, 58],
+        [6, 34, 62],
+        [6, 26, 46, 66],
+        [6, 26, 48, 70],
+        [6, 26, 50, 74],
+        [6, 30, 54, 78],
+        [6, 30, 56, 82],
+        [6, 30, 58, 86],
+        [6, 34, 62, 90],
+        [6, 28, 50, 72, 94],
+        [6, 26, 50, 74, 98],
+        [6, 30, 54, 78, 102],
+        [6, 28, 54, 80, 106],
+        [6, 32, 58, 84, 110],
+        [6, 30, 58, 86, 114],
+        [6, 34, 62, 90, 118],
+        [6, 26, 50, 74, 98, 122],
+        [6, 30, 54, 78, 102, 126],
+        [6, 26, 52, 78, 104, 130],
+        [6, 30, 56, 82, 108, 134],
+        [6, 34, 60, 86, 112, 138],
+        [6, 30, 58, 86, 114, 142],
+        [6, 34, 62, 90, 118, 146],
+        [6, 30, 54, 78, 102, 126, 150],
+        [6, 24, 50, 76, 102, 128, 154],
+        [6, 28, 54, 80, 106, 132, 158],
+        [6, 32, 58, 84, 110, 136, 162],
+        [6, 26, 54, 82, 110, 138, 166],
+        [6, 30, 58, 86, 114, 142, 170]
+    ],
+
+    G15 : (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0),
+    G18 : (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0),
+    G15_MASK : (1 << 14) | (1 << 12) | (1 << 10)    | (1 << 4) | (1 << 1),
+
+    getBCHTypeInfo : function(data) {
+        var d = data << 10;
+        while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) >= 0) {
+            d ^= (QRUtil.G15 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) ) );    
+        }
+        return ( (data << 10) | d) ^ QRUtil.G15_MASK;
+    },
+
+    getBCHTypeNumber : function(data) {
+        var d = data << 12;
+        while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) >= 0) {
+            d ^= (QRUtil.G18 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) ) );    
+        }
+        return (data << 12) | d;
+    },
+
+    getBCHDigit : function(data) {
+
+        var digit = 0;
+
+        while (data !== 0) {
+            digit++;
+            data >>>= 1;
+        }
+
+        return digit;
+    },
+
+    getPatternPosition : function(typeNumber) {
+        return QRUtil.PATTERN_POSITION_TABLE[typeNumber - 1];
+    },
+
+    getMask : function(maskPattern, i, j) {
+        
+        switch (maskPattern) {
+            
+        case QRMaskPattern.PATTERN000 : return (i + j) % 2 === 0;
+        case QRMaskPattern.PATTERN001 : return i % 2 === 0;
+        case QRMaskPattern.PATTERN010 : return j % 3 === 0;
+        case QRMaskPattern.PATTERN011 : return (i + j) % 3 === 0;
+        case QRMaskPattern.PATTERN100 : return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 === 0;
+        case QRMaskPattern.PATTERN101 : return (i * j) % 2 + (i * j) % 3 === 0;
+        case QRMaskPattern.PATTERN110 : return ( (i * j) % 2 + (i * j) % 3) % 2 === 0;
+        case QRMaskPattern.PATTERN111 : return ( (i * j) % 3 + (i + j) % 2) % 2 === 0;
+
+        default :
+            throw new Error("bad maskPattern:" + maskPattern);
+        }
+    },
+
+    getErrorCorrectPolynomial : function(errorCorrectLength) {
+
+        var a = new QRPolynomial([1], 0);
+
+        for (var i = 0; i < errorCorrectLength; i++) {
+            a = a.multiply(new QRPolynomial([1, QRMath.gexp(i)], 0) );
+        }
+
+        return a;
+    },
+
+    getLengthInBits : function(mode, type) {
+
+        if (1 <= type && type < 10) {
+
+            // 1 - 9
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 10;
+            case QRMode.MODE_ALPHA_NUM  : return 9;
+            case QRMode.MODE_8BIT_BYTE  : return 8;
+            case QRMode.MODE_KANJI      : return 8;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else if (type < 27) {
+
+            // 10 - 26
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 12;
+            case QRMode.MODE_ALPHA_NUM  : return 11;
+            case QRMode.MODE_8BIT_BYTE  : return 16;
+            case QRMode.MODE_KANJI      : return 10;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else if (type < 41) {
+
+            // 27 - 40
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 14;
+            case QRMode.MODE_ALPHA_NUM  : return 13;
+            case QRMode.MODE_8BIT_BYTE  : return 16;
+            case QRMode.MODE_KANJI      : return 12;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else {
+            throw new Error("type:" + type);
+        }
+    },
+
+    getLostPoint : function(qrCode) {
+        
+        var moduleCount = qrCode.getModuleCount();
+        var lostPoint = 0;
+        var row = 0; 
+        var col = 0;
+
+        
+        // LEVEL1
+        
+        for (row = 0; row < moduleCount; row++) {
+
+            for (col = 0; col < moduleCount; col++) {
+
+                var sameCount = 0;
+                var dark = qrCode.isDark(row, col);
+
+                for (var r = -1; r <= 1; r++) {
+
+                    if (row + r < 0 || moduleCount <= row + r) {
+                        continue;
+                    }
+
+                    for (var c = -1; c <= 1; c++) {
+
+                        if (col + c < 0 || moduleCount <= col + c) {
+                            continue;
+                        }
+
+                        if (r === 0 && c === 0) {
+                            continue;
+                        }
+
+                        if (dark === qrCode.isDark(row + r, col + c) ) {
+                            sameCount++;
+                        }
+                    }
+                }
+
+                if (sameCount > 5) {
+                    lostPoint += (3 + sameCount - 5);
+                }
+            }
+        }
+
+        // LEVEL2
+
+        for (row = 0; row < moduleCount - 1; row++) {
+            for (col = 0; col < moduleCount - 1; col++) {
+                var count = 0;
+                if (qrCode.isDark(row,     col    ) ) count++;
+                if (qrCode.isDark(row + 1, col    ) ) count++;
+                if (qrCode.isDark(row,     col + 1) ) count++;
+                if (qrCode.isDark(row + 1, col + 1) ) count++;
+                if (count === 0 || count === 4) {
+                    lostPoint += 3;
+                }
+            }
+        }
+
+        // LEVEL3
+
+        for (row = 0; row < moduleCount; row++) {
+            for (col = 0; col < moduleCount - 6; col++) {
+                if (qrCode.isDark(row, col) && 
+                        !qrCode.isDark(row, col + 1) && 
+                         qrCode.isDark(row, col + 2) && 
+                         qrCode.isDark(row, col + 3) && 
+                         qrCode.isDark(row, col + 4) && 
+                        !qrCode.isDark(row, col + 5) && 
+                         qrCode.isDark(row, col + 6) ) {
+                    lostPoint += 40;
+                }
+            }
+        }
+
+        for (col = 0; col < moduleCount; col++) {
+            for (row = 0; row < moduleCount - 6; row++) {
+                if (qrCode.isDark(row, col) &&
+                        !qrCode.isDark(row + 1, col) &&
+                         qrCode.isDark(row + 2, col) &&
+                         qrCode.isDark(row + 3, col) &&
+                         qrCode.isDark(row + 4, col) &&
+                        !qrCode.isDark(row + 5, col) &&
+                         qrCode.isDark(row + 6, col) ) {
+                    lostPoint += 40;
+                }
+            }
+        }
+
+        // LEVEL4
+        
+        var darkCount = 0;
+
+        for (col = 0; col < moduleCount; col++) {
+            for (row = 0; row < moduleCount; row++) {
+                if (qrCode.isDark(row, col) ) {
+                    darkCount++;
+                }
+            }
+        }
+        
+        var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+        lostPoint += ratio * 10;
+
+        return lostPoint;       
+    }
+
+};
+
+module.exports = QRUtil;
+
+  return module.exports;
+})();
+
+var QRCode = (function () {
+  var module = { exports: {} };
+//---------------------------------------------------------------------
+// QRCode for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//   http://www.opensource.org/licenses/mit-license.php
+//
+// The word "QR Code" is registered trademark of 
+// DENSO WAVE INCORPORATED
+//   http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+// Modified to work in node for this project (and some refactoring)
+//---------------------------------------------------------------------
+
+
+
+
+
+
+function QRCode(typeNumber, errorCorrectLevel) {
+	this.typeNumber = typeNumber;
+	this.errorCorrectLevel = errorCorrectLevel;
+	this.modules = null;
+	this.moduleCount = 0;
+	this.dataCache = null;
+	this.dataList = [];
+}
+
+QRCode.prototype = {
+	
+	addData : function(data) {
+		var newData = new QR8bitByte(data);
+		this.dataList.push(newData);
+		this.dataCache = null;
+	},
+	
+	isDark : function(row, col) {
+		if (row < 0 || this.moduleCount <= row || col < 0 || this.moduleCount <= col) {
+			throw new Error(row + "," + col);
+		}
+		return this.modules[row][col];
+	},
+
+	getModuleCount : function() {
+		return this.moduleCount;
+	},
+	
+	make : function() {
+		// Calculate automatically typeNumber if provided is < 1
+		if (this.typeNumber < 1 ){
+			var typeNumber = 1;
+			for (typeNumber = 1; typeNumber < 40; typeNumber++) {
+				var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, this.errorCorrectLevel);
+
+				var buffer = new QRBitBuffer();
+				var totalDataCount = 0;
+				for (var i = 0; i < rsBlocks.length; i++) {
+					totalDataCount += rsBlocks[i].dataCount;
+				}
+
+				for (var x = 0; x < this.dataList.length; x++) {
+					var data = this.dataList[x];
+					buffer.put(data.mode, 4);
+					buffer.put(data.getLength(), QRUtil.getLengthInBits(data.mode, typeNumber) );
+					data.write(buffer);
+				}
+				if (buffer.getLengthInBits() <= totalDataCount * 8)
+					break;
+			}
+			this.typeNumber = typeNumber;
+		}
+		this.makeImpl(false, this.getBestMaskPattern() );
+	},
+	
+	makeImpl : function(test, maskPattern) {
+		
+		this.moduleCount = this.typeNumber * 4 + 17;
+		this.modules = new Array(this.moduleCount);
+		
+		for (var row = 0; row < this.moduleCount; row++) {
+			
+			this.modules[row] = new Array(this.moduleCount);
+			
+			for (var col = 0; col < this.moduleCount; col++) {
+				this.modules[row][col] = null;//(col + row) % 3;
+			}
+		}
+	
+		this.setupPositionProbePattern(0, 0);
+		this.setupPositionProbePattern(this.moduleCount - 7, 0);
+		this.setupPositionProbePattern(0, this.moduleCount - 7);
+		this.setupPositionAdjustPattern();
+		this.setupTimingPattern();
+		this.setupTypeInfo(test, maskPattern);
+		
+		if (this.typeNumber >= 7) {
+			this.setupTypeNumber(test);
+		}
+	
+		if (this.dataCache === null) {
+			this.dataCache = QRCode.createData(this.typeNumber, this.errorCorrectLevel, this.dataList);
+		}
+	
+		this.mapData(this.dataCache, maskPattern);
+	},
+
+	setupPositionProbePattern : function(row, col)  {
+		
+		for (var r = -1; r <= 7; r++) {
+			
+			if (row + r <= -1 || this.moduleCount <= row + r) continue;
+			
+			for (var c = -1; c <= 7; c++) {
+				
+				if (col + c <= -1 || this.moduleCount <= col + c) continue;
+				
+				if ( (0 <= r && r <= 6 && (c === 0 || c === 6) ) || 
+                     (0 <= c && c <= 6 && (r === 0 || r === 6) ) || 
+                     (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+					this.modules[row + r][col + c] = true;
+				} else {
+					this.modules[row + r][col + c] = false;
+				}
+			}		
+		}		
+	},
+	
+	getBestMaskPattern : function() {
+	
+		var minLostPoint = 0;
+		var pattern = 0;
+	
+		for (var i = 0; i < 8; i++) {
+			
+			this.makeImpl(true, i);
+	
+			var lostPoint = QRUtil.getLostPoint(this);
+	
+			if (i === 0 || minLostPoint >  lostPoint) {
+				minLostPoint = lostPoint;
+				pattern = i;
+			}
+		}
+	
+		return pattern;
+	},
+	
+	createMovieClip : function(target_mc, instance_name, depth) {
+	
+		var qr_mc = target_mc.createEmptyMovieClip(instance_name, depth);
+		var cs = 1;
+	
+		this.make();
+
+		for (var row = 0; row < this.modules.length; row++) {
+			
+			var y = row * cs;
+			
+			for (var col = 0; col < this.modules[row].length; col++) {
+	
+				var x = col * cs;
+				var dark = this.modules[row][col];
+			
+				if (dark) {
+					qr_mc.beginFill(0, 100);
+					qr_mc.moveTo(x, y);
+					qr_mc.lineTo(x + cs, y);
+					qr_mc.lineTo(x + cs, y + cs);
+					qr_mc.lineTo(x, y + cs);
+					qr_mc.endFill();
+				}
+			}
+		}
+		
+		return qr_mc;
+	},
+
+	setupTimingPattern : function() {
+		
+		for (var r = 8; r < this.moduleCount - 8; r++) {
+			if (this.modules[r][6] !== null) {
+				continue;
+			}
+			this.modules[r][6] = (r % 2 === 0);
+		}
+	
+		for (var c = 8; c < this.moduleCount - 8; c++) {
+			if (this.modules[6][c] !== null) {
+				continue;
+			}
+			this.modules[6][c] = (c % 2 === 0);
+		}
+	},
+	
+	setupPositionAdjustPattern : function() {
+	
+		var pos = QRUtil.getPatternPosition(this.typeNumber);
+		
+		for (var i = 0; i < pos.length; i++) {
+		
+			for (var j = 0; j < pos.length; j++) {
+			
+				var row = pos[i];
+				var col = pos[j];
+				
+				if (this.modules[row][col] !== null) {
+					continue;
+				}
+				
+				for (var r = -2; r <= 2; r++) {
+				
+					for (var c = -2; c <= 2; c++) {
+					
+						if (Math.abs(r) === 2 || 
+                            Math.abs(c) === 2 ||
+                            (r === 0 && c === 0) ) {
+							this.modules[row + r][col + c] = true;
+						} else {
+							this.modules[row + r][col + c] = false;
+						}
+					}
+				}
+			}
+		}
+	},
+	
+	setupTypeNumber : function(test) {
+	
+		var bits = QRUtil.getBCHTypeNumber(this.typeNumber);
+        var mod;
+	
+		for (var i = 0; i < 18; i++) {
+			mod = (!test && ( (bits >> i) & 1) === 1);
+			this.modules[Math.floor(i / 3)][i % 3 + this.moduleCount - 8 - 3] = mod;
+		}
+	
+		for (var x = 0; x < 18; x++) {
+			mod = (!test && ( (bits >> x) & 1) === 1);
+			this.modules[x % 3 + this.moduleCount - 8 - 3][Math.floor(x / 3)] = mod;
+		}
+	},
+	
+	setupTypeInfo : function(test, maskPattern) {
+	
+		var data = (this.errorCorrectLevel << 3) | maskPattern;
+		var bits = QRUtil.getBCHTypeInfo(data);
+        var mod;
+	
+		// vertical		
+		for (var v = 0; v < 15; v++) {
+	
+			mod = (!test && ( (bits >> v) & 1) === 1);
+	
+			if (v < 6) {
+				this.modules[v][8] = mod;
+			} else if (v < 8) {
+				this.modules[v + 1][8] = mod;
+			} else {
+				this.modules[this.moduleCount - 15 + v][8] = mod;
+			}
+		}
+	
+		// horizontal
+		for (var h = 0; h < 15; h++) {
+	
+			mod = (!test && ( (bits >> h) & 1) === 1);
+			
+			if (h < 8) {
+				this.modules[8][this.moduleCount - h - 1] = mod;
+			} else if (h < 9) {
+				this.modules[8][15 - h - 1 + 1] = mod;
+			} else {
+				this.modules[8][15 - h - 1] = mod;
+			}
+		}
+	
+		// fixed module
+		this.modules[this.moduleCount - 8][8] = (!test);
+	
+	},
+	
+	mapData : function(data, maskPattern) {
+		
+		var inc = -1;
+		var row = this.moduleCount - 1;
+		var bitIndex = 7;
+		var byteIndex = 0;
+		
+		for (var col = this.moduleCount - 1; col > 0; col -= 2) {
+	
+			if (col === 6) col--;
+	
+			while (true) {
+	
+				for (var c = 0; c < 2; c++) {
+					
+					if (this.modules[row][col - c] === null) {
+						
+						var dark = false;
+	
+						if (byteIndex < data.length) {
+							dark = ( ( (data[byteIndex] >>> bitIndex) & 1) === 1);
+						}
+	
+						var mask = QRUtil.getMask(maskPattern, row, col - c);
+	
+						if (mask) {
+							dark = !dark;
+						}
+						
+						this.modules[row][col - c] = dark;
+						bitIndex--;
+	
+						if (bitIndex === -1) {
+							byteIndex++;
+							bitIndex = 7;
+						}
+					}
+				}
+								
+				row += inc;
+	
+				if (row < 0 || this.moduleCount <= row) {
+					row -= inc;
+					inc = -inc;
+					break;
+				}
+			}
+		}
+		
+	}
+
+};
+
+QRCode.PAD0 = 0xEC;
+QRCode.PAD1 = 0x11;
+
+QRCode.createData = function(typeNumber, errorCorrectLevel, dataList) {
+	
+	var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectLevel);
+	
+	var buffer = new QRBitBuffer();
+	
+	for (var i = 0; i < dataList.length; i++) {
+		var data = dataList[i];
+		buffer.put(data.mode, 4);
+		buffer.put(data.getLength(), QRUtil.getLengthInBits(data.mode, typeNumber) );
+		data.write(buffer);
+	}
+
+	// calc num max data.
+	var totalDataCount = 0;
+	for (var x = 0; x < rsBlocks.length; x++) {
+		totalDataCount += rsBlocks[x].dataCount;
+	}
+
+	if (buffer.getLengthInBits() > totalDataCount * 8) {
+		throw new Error("code length overflow. (" + 
+            buffer.getLengthInBits() + 
+            ">" +  
+            totalDataCount * 8 + 
+            ")");
+	}
+
+	// end code
+	if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+		buffer.put(0, 4);
+	}
+
+	// padding
+	while (buffer.getLengthInBits() % 8 !== 0) {
+		buffer.putBit(false);
+	}
+
+	// padding
+	while (true) {
+		
+		if (buffer.getLengthInBits() >= totalDataCount * 8) {
+			break;
+		}
+		buffer.put(QRCode.PAD0, 8);
+		
+		if (buffer.getLengthInBits() >= totalDataCount * 8) {
+			break;
+		}
+		buffer.put(QRCode.PAD1, 8);
+	}
+
+	return QRCode.createBytes(buffer, rsBlocks);
+};
+
+QRCode.createBytes = function(buffer, rsBlocks) {
+
+	var offset = 0;
+	
+	var maxDcCount = 0;
+	var maxEcCount = 0;
+	
+	var dcdata = new Array(rsBlocks.length);
+	var ecdata = new Array(rsBlocks.length);
+	
+	for (var r = 0; r < rsBlocks.length; r++) {
+
+		var dcCount = rsBlocks[r].dataCount;
+		var ecCount = rsBlocks[r].totalCount - dcCount;
+
+		maxDcCount = Math.max(maxDcCount, dcCount);
+		maxEcCount = Math.max(maxEcCount, ecCount);
+		
+		dcdata[r] = new Array(dcCount);
+		
+		for (var i = 0; i < dcdata[r].length; i++) {
+			dcdata[r][i] = 0xff & buffer.buffer[i + offset];
+		}
+		offset += dcCount;
+		
+		var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+		var rawPoly = new QRPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+		var modPoly = rawPoly.mod(rsPoly);
+		ecdata[r] = new Array(rsPoly.getLength() - 1);
+		for (var x = 0; x < ecdata[r].length; x++) {
+            var modIndex = x + modPoly.getLength() - ecdata[r].length;
+			ecdata[r][x] = (modIndex >= 0)? modPoly.get(modIndex) : 0;
+		}
+
+	}
+	
+	var totalCodeCount = 0;
+	for (var y = 0; y < rsBlocks.length; y++) {
+		totalCodeCount += rsBlocks[y].totalCount;
+	}
+
+	var data = new Array(totalCodeCount);
+	var index = 0;
+
+	for (var z = 0; z < maxDcCount; z++) {
+		for (var s = 0; s < rsBlocks.length; s++) {
+			if (z < dcdata[s].length) {
+				data[index++] = dcdata[s][z];
+			}
+		}
+	}
+
+	for (var xx = 0; xx < maxEcCount; xx++) {
+		for (var t = 0; t < rsBlocks.length; t++) {
+			if (xx < ecdata[t].length) {
+				data[index++] = ecdata[t][xx];
+			}
+		}
+	}
+
+	return data;
+
+};
+
+module.exports = QRCode;
+
+  return module.exports;
+})();
+
+</script>
+<script>/* Offline QR encoder. Encoder vendor is QRCode by Kazuhiko Arase, MIT. */
+var VQR=(function(){
+'use strict';
+function utf8(v){var s='';for(var i=0;i<v.length;i++){var p=v.charCodeAt(i);if(p>=0xD800&&p<=0xDBFF&&i+1<v.length){var lo=v.charCodeAt(i+1);if(lo>=0xDC00&&lo<=0xDFFF){p=0x10000+((p-0xD800)<<10)+(lo-0xDC00);i++;}}if(p<128)s+=String.fromCharCode(p);else if(p<2048)s+=String.fromCharCode(192|(p>>6),128|(p&63));else if(p<65536)s+=String.fromCharCode(224|(p>>12),128|((p>>6)&63),128|(p&63));else s+=String.fromCharCode(240|(p>>18),128|((p>>12)&63),128|((p>>6)&63),128|(p&63));}return s;}
+function escWifi(s){return String(s).replace(/([\\;,:"])/g,'\\$1');}
+function payload(type,value){var s=String(value||'').trim();if(!s)return '';if(type==='wifi')return 'WIFI:T:nopass;S:'+escWifi(s)+';;';if(type==='sms')return 'SMSTO:'+s+':';if(type==='phone')return 'tel:'+s;if(type==='email')return 'mailto:'+s;return s;}
+function base(value){var text=utf8(value);if(!text.length)throw new Error('Введите данные для QR.');if(text.length>1500)throw new Error('Слишком длинный текст для QR.');var q=new QRCode(-1,QRErrorCorrectLevel.H);try{q.addData(text);q.make();}catch(e){throw new Error('Данные не помещаются в QR с коррекцией H.');}return {qr:q,version:q.typeNumber,n:q.getModuleCount(),value:value};}
+function protectedAt(v,n,x,y,w,h){if(!w||!h)return false;if((x<9&&y<9)||(x+w>n-9&&y<9)||(x<9&&y+h>n-9))return true;if(x<=6&&x+w>6||y<=6&&y+h>6)return true;var pos=QRUtil.getPatternPosition(v);for(var i=0;i<pos.length;i++)for(var j=0;j<pos.length;j++){var cx=pos[i],cy=pos[j];if((cx===6&&cy===6)||(cx===6&&cy===n-7)||(cx===n-7&&cy===6))continue;if(x<cx+3&&x+w>cx-2&&y<cy+3&&y+h>cy-2)return true;}return false;}
+function odd(v,n){if(!v)return 0;var x=Math.max(1,Math.round(v*n));if(x%2===0)x+=x<n/2?1:-1;return x;}
+function geometry(b,hw,hh){var n=b.n,w=odd(hw,n),h=odd(hh,n);if(hw===0||hh===0){w=0;h=0;}var x=Math.floor((n-w)/2),y=Math.floor((n-h)/2);return {qr:b.qr,version:b.version,n:n,x:x,y:y,w:w,h:h,valid:!protectedAt(b.version,n,x,y,w,h)};}
+function fit(text,hw,hh,prior){var b=prior&&prior.value===text?prior:base(text);var geom=geometry(b,hw,hh);if(geom.valid)return {base:b,m:geom};
+ // Keep the encoder deterministic, but promote the version if protection elements conflict.
+ var bytes=utf8(text);for(var v=b.version+1;v<=40;v++){var q=new QRCode(v,QRErrorCorrectLevel.H);try{q.addData(bytes);q.make();}catch(e){continue;}var nb={qr:q,version:v,n:q.getModuleCount(),value:text},m=geometry(nb,hw,hh);if(m.valid)return {base:nb,m:m};}
+ throw new Error('Отверстие пересекает служебные модули. Уменьшите его.');}
+function inHole(m,r,c){return m.w>0&&m.h>0&&c>=m.x&&c<m.x+m.w&&r>=m.y&&r<m.y+m.h;}
+function hex(v){return /^#[a-f0-9]{6}$/i.test(String(v||''))?String(v).toUpperCase():'#000000';}
+function xml(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function svg(m,size,fg,bg,logo,omitBackground){var n=m.n,quiet=4,cell=size/(n+quiet*2),p=['<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'];if(!omitBackground)p.push('<rect width="'+size+'" height="'+size+'" fill="'+hex(bg)+'"/>');for(var r=0;r<n;r++){var d='';for(var c=0;c<n;){if(!m.qr.isDark(r,c)||inHole(m,r,c)){c++;continue;}var from=c;while(c<n&&m.qr.isDark(r,c)&&!inHole(m,r,c))c++;var x=(from+quiet)*cell,y=(r+quiet)*cell,w=(c-from)*cell;d+='M'+x.toFixed(5)+' '+y.toFixed(5)+'h'+w.toFixed(5)+'v'+cell.toFixed(5)+'h-'+w.toFixed(5)+'z';}if(d)p.push('<path fill="'+hex(fg)+'" d="'+d+'"/>');}
+if(logo&&logo.inner&&m.w&&m.h){
+ var vb=logo.viewBox.trim().split(/[ ,]+/).map(Number);
+ if(vb.length!==4||!vb.every(isFinite)||vb[2]<=0||vb[3]<=0)throw new Error('Некорректный viewBox логотипа.');
+ var lx=(m.x+quiet)*cell,ly=(m.y+quiet)*cell,lw=m.w*cell,lh=m.h*cell;
+ var k=Math.min(lw*.92/vb[2],lh*.92/vb[3]),tw=vb[2]*k,th=vb[3]*k;
+ // A transformed group is more reliably imported by Figma than a nested <svg>.
+ // Every painted logo path has its final QR color explicitly assigned by tintLogo().
+ p.push('<g transform="translate('+(lx+(lw-tw)/2).toFixed(5)+' '+(ly+(lh-th)/2).toFixed(5)+') scale('+k.toFixed(8)+') translate('+(-vb[0]).toFixed(5)+' '+(-vb[1]).toFixed(5)+')">'+logo.inner+'</g>');
+}
+p.push('</svg>');return p.join('');}
+return {base:base,fit:fit,geometry:geometry,inHole:inHole,svg:svg,hex:hex,payload:payload};})();
+</script>
+<script>(function(){
+'use strict';
+var el=function(id){return document.getElementById(id);};
+var state={type:'url',value:el('content').value,lang:'ru',fg:'#000000',bg:'#FFFFFF',noBackground:false,mode:'logo',logo:null,logoImage:null,logoImportToken:0,logoPercent:30,holeW:0,holeH:0,base:null,model:null,previewTimer:null,frame:0,job:0,noticeTimer:null,tintedLogo:null,tintToken:0,tintReady:Promise.resolve()};
+var cs=el('qrCanvas'),ctx=cs.getContext('2d',{alpha:true});
+var dict={
+ ru:{name:'QR генератор',text:'Текст',phone:'Телефон',foreground:'Цвет QR',background:'Цвет фона',noBackground:'Без фона',logo:'Добавить логотип',logoChoose:'Выбрать логотип.svg',logoScale:'Размер логотипа',hole:'Область под логотип',holeW:'Ширина области под логотип',holeH:'Высота области под логотип',insert:'Добавить QR-код на макет',png:'Экспорт PNG',svg:'Экспорт SVG'},
+ en:{name:'QR generator',text:'Text',phone:'Phone',foreground:'QR color',background:'Background color',noBackground:'No background',logo:'Add logo',logoChoose:'Select logo.svg',logoScale:'Logo size',hole:'Logo cutout area',holeW:'Cutout width',holeH:'Cutout height',insert:'Add QR to canvas',png:'Export PNG',svg:'Export SVG'}
+};
+function note(s){clearTimeout(state.noticeTimer);el('notice').textContent=s;el('notice').classList.add('show');state.noticeTimer=setTimeout(function(){el('notice').classList.remove('show');},3600);}
+function currentText(){return VQR.payload(state.type,state.value);}
+function normalizedHole(){
+ if(state.mode==='hole')return {w:state.holeW/100,h:state.holeH/100};
+ if(state.mode!=='logo'||!state.logo)return {w:0,h:0};
+ var l=state.logo,f=state.logoPercent/100,largest=Math.max(l.width,l.height);
+ var w=(l.width/largest)*f,h=(l.height/largest)*f;
+ // The reserved region includes a module-scale margin. Values are capped to 12% QR area.
+ var n=state.base?state.base.n:41,pad=2/n;w+=pad;h+=pad;
+ var shrink=Math.min(1,0.5/w,0.4/h,Math.sqrt(0.12/(w*h)));
+ return {w:w*shrink,h:h*shrink};
+}
+function clampHole(changed){var w=state.holeW,h=state.holeH;if(w*h<=1200)return;
+ if(changed==='w'){state.holeH=Math.floor(1200/Math.max(1,w));el('holeH').value=state.holeH;el('holeHOutput').textContent=state.holeH+'%';}
+ else{state.holeW=Math.floor(1200/Math.max(1,h));el('holeW').value=state.holeW;el('holeWOutput').textContent=state.holeW+'%';}}
+function quickGeometry(){
+ if(!state.base)return null;
+ var h=normalizedHole(),m=VQR.geometry(state.base,h.w,h.h);
+ return m.valid?m:null;
+}
+function renderCanvas(canvas,c,m,forceOpaque){
+ var cw=canvas.width;var n=m.n,q=4,unit=cw/(n+q*2);
+ c.clearRect(0,0,cw,cw);
+ if(!state.noBackground || forceOpaque){c.fillStyle=state.noBackground?'#FFFFFF':state.bg;c.fillRect(0,0,cw,cw);}
+ c.fillStyle=state.fg;
+ for(var r=0;r<n;r++)for(var x=0;x<n;x++){
+  if(!m.qr.isDark(r,x)||VQR.inHole(m,r,x))continue;
+  var x0=Math.floor((x+q)*unit),x1=Math.ceil((x+q+1)*unit),y0=Math.floor((r+q)*unit),y1=Math.ceil((r+q+1)*unit);
+  c.fillRect(x0,y0,x1-x0,y1-y0);
+ }
+ if(state.mode==='logo'&&state.logoImage&&state.logo&&m.w&&m.h){
+  var boxX=(m.x+q)*unit,boxY=(m.y+q)*unit,boxW=m.w*unit,boxH=m.h*unit;
+  var l=state.logo,k=Math.min(boxW*.92/l.width,boxH*.92/l.height),w=l.width*k,h=l.height*k;
+  try{c.drawImage(state.logoImage,boxX+(boxW-w)/2,boxY+(boxH-h)/2,w,h);}catch(e){}
+ }
+}
+function requestDraw(){cs.classList.toggle('transparent',state.noBackground);if(state.frame)cancelAnimationFrame(state.frame);state.frame=requestAnimationFrame(function(){state.frame=0;if(state.model)renderCanvas(cs,ctx,state.model);});}
+function slowCompute(){clearTimeout(state.previewTimer);var job=++state.job;if(!currentText()){state.model=null;ctx.clearRect(0,0,cs.width,cs.height);if(!state.noBackground){ctx.fillStyle=state.bg;ctx.fillRect(0,0,cs.width,cs.height);}cs.classList.toggle('transparent',state.noBackground);return;}
+ state.previewTimer=setTimeout(function(){if(job!==state.job)return;try{
+  var txt=currentText();if(!state.base||state.base.value!==txt)state.base=VQR.base(txt);
+  var hole=normalizedHole();var result=VQR.fit(txt,hole.w,hole.h,state.base);
+  if(job!==state.job)return;
+  state.base=result.base;state.model=result.m;requestDraw();
+ }catch(e){note(e.message||String(e));}},110);}
+function updateFast(){var geom=quickGeometry();if(geom){state.model=geom;requestDraw();}else slowCompute();}
+function setMode(mode){if(mode!=='logo'&&mode!=='hole')mode='none';state.mode=mode;
+ var logo=mode==='logo',hole=mode==='hole';el('logoToggle').classList.toggle('on',logo);el('holeToggle').classList.toggle('on',hole);
+ el('logoToggle').setAttribute('aria-checked',String(logo));el('holeToggle').setAttribute('aria-checked',String(hole));
+ // Both mode buttons stay clickable. Activating either one switches the other off instantly.
+ el('logoToggle').disabled=false;el('holeToggle').disabled=false;
+ el('logoBox').classList.toggle('inactive',!logo);el('holeBox').classList.toggle('inactive',!hole);
+ el('logoScale').disabled=!logo;el('chooseLogo').disabled=!logo;el('holeW').disabled=!hole;el('holeH').disabled=!hole;
+ updateFast();}
+function toggleLogo(){setMode(state.mode==='logo'?'none':'logo');}
+function toggleHole(){if(state.mode!=='hole'&&state.holeW===0&&state.holeH===0){state.holeW=25;state.holeH=12;el('holeW').value=25;el('holeH').value=12;el('holeWOutput').textContent='25%';el('holeHOutput').textContent='12%';}setMode(state.mode==='hole'?'none':'hole');syncRangeFills();}
+function validColor(s){return /^#[\da-fA-F]{6}$/.test(s);}
+function setColor(which,v,fromText){if(!validColor(v)){if(!fromText)note(state.lang==='ru'?'Цвет должен иметь формат #RRGGBB':'Use #RRGGBB');return;}state[which]=v.toUpperCase();var stem=which==='fg'?'fg':'bg';el(stem+'Hex').value=state[which];el(stem+'Pick').value=state[which];el(stem+'Swatch').style.background=state[which];if(which==='fg'&&state.logo)refreshTintedLogo();requestDraw();}
+function translate(lang){state.lang=lang;el('ru').classList.toggle('active',lang==='ru');el('en').classList.toggle('active',lang==='en');var d=dict[lang];document.querySelector('.branding span:last-child').textContent=d.name;
+ document.querySelector('[data-type=text]').textContent=d.text;document.querySelector('[data-type=phone]').textContent=d.phone;
+ el('fgLabel').textContent=d.foreground;el('bgLabel').textContent=d.background;el('noBackgroundTitle').textContent=d.noBackground;el('noBackgroundToggle').setAttribute('aria-label',d.noBackground);el('logoTitle').textContent=d.logo;el('logoScaleLabel').textContent=d.logoScale;el('holeTitle').textContent=d.hole;el('holeWLabel').textContent=d.holeW;el('holeHLabel').textContent=d.holeH;
+ if(!state.logo)el('logoFilename').textContent=d.logoChoose;el('insert').textContent=d.insert;el('exportPng').textContent=d.png;el('exportSvg').textContent=d.svg;
+ var placeholders={url:'URL',text:d.text,wifi:'Wi-Fi',sms:'SMS',phone:d.phone,email:'Email'};el('content').placeholder=placeholders[state.type];el('content').setAttribute('aria-label',placeholders[state.type]);}
+function cleanSVG(raw){var parsed=new DOMParser().parseFromString(raw,'image/svg+xml');if(parsed.getElementsByTagName('parsererror').length)throw new Error('Не удалось прочитать SVG.');var root=parsed.documentElement;if(root.localName.toLowerCase()!=='svg')throw new Error('Выберите SVG-файл.');
+ // Imported logos must be self-contained, vector-only SVGs. Never load remote assets.
+ var denied={script:1,foreignobject:1,iframe:1,object:1,embed:1,image:1,feimage:1,animate:1,animatetransform:1,animatemotion:1,set:1,filter:1};
+ var styles=root.getElementsByTagName('style');
+ for(var st=0;st<styles.length;st++){
+  if(/@import|url\(\s*(?!['"]?#)|(?:https?:|javascript:|data:)|expression\s*\(/i.test(styles[st].textContent||''))
+   throw new Error('SVG содержит внешние ресурсы или небезопасные CSS-правила.');
+ }
+ var walker=parsed.createTreeWalker(root,NodeFilter.SHOW_ELEMENT,null),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ for(var i=nodes.length-1;i>=0;i--){var n=nodes[i];if(denied[n.localName.toLowerCase()]){n.remove();continue;}var attrs=Array.prototype.slice.call(n.attributes);attrs.forEach(function(a){var key=a.name.toLowerCase(),val=a.value;if(key.startsWith('on')||/https?:|javascript:|data:|@import|expression\s*\(/i.test(val)||((key==='href'||key==='xlink:href')&&!val.startsWith('#'))){n.removeAttribute(a.name);}});}
+ var vb=root.getAttribute('viewBox');var width=parseFloat(root.getAttribute('width')),height=parseFloat(root.getAttribute('height'));
+ if(vb){var nums=vb.trim().split(/[ ,]+/).map(Number);if(nums.length===4&&nums[2]>0&&nums[3]>0){width=nums[2];height=nums[3];}}
+ if(!(width>0&&height>0))throw new Error('В SVG отсутствуют корректные размеры или viewBox.');
+ var view=vb||'0 0 '+width+' '+height;
+ /* Only remove an explicit full-artboard white background, never white logo details.
+    This uses SVG attributes; no layout measurement APIs are called at startup. */
+ var rect=root.firstElementChild;
+ if(rect && rect.localName && rect.localName.toLowerCase()==='rect'){
+   var rawFill=(rect.getAttribute('fill')||'').replace(/\s/g,'').toLowerCase();
+   var inlineStyle=(rect.getAttribute('style')||'').toLowerCase();
+   if(!rawFill){var m=inlineStyle.match(/(?:^|;)\s*fill\s*:\s*([^;]+)/);if(m)rawFill=m[1].trim();}
+   var rw=rect.getAttribute('width'),rh=rect.getAttribute('height');
+   var rx=rect.getAttribute('x')||'0',ry=rect.getAttribute('y')||'0';
+   var v=view.trim().split(/[ ,]+/).map(Number);
+   var fullW=rw==='100%'||parseFloat(rw)>=v[2]*0.999;
+   var fullH=rh==='100%'||parseFloat(rh)>=v[3]*0.999;
+   if((rawFill==='#fff'||rawFill==='#ffffff'||rawFill==='white')&&fullW&&fullH&&parseFloat(rx)<=v[0]+v[2]*0.001&&parseFloat(ry)<=v[1]+v[3]*0.001)rect.remove();
+ }
+ var inner=new XMLSerializer().serializeToString(root).replace(/^<svg[^>]*>/i,'').replace(/<\/svg>\s*$/i,'');
+ if(inner.length>300000)throw new Error('SVG слишком большой.');return {inner:inner,width:width,height:height,viewBox:view};
+}
+/* Auto Trim measures the rendered alpha channel on a small temporary canvas.
+   The logo that is actually exported is still its original, editable SVG paths.
+   On any browser/Figma limitation it falls back to the original SVG safely. */
+function autoTrimLogo(obj,originalImage){
+ try{
+  var vals=obj.viewBox.trim().split(/[ ,]+/).map(Number);
+  if(vals.length!==4 || !vals.every(isFinite))return obj;
+  var w=vals[2],h=vals[3];if(!(w>0&&h>0))return obj;
+  var scale=420/Math.max(w,h),cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+  var cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
+  var cc=cv.getContext('2d',{willReadFrequently:true});if(!cc)return obj;
+  cc.clearRect(0,0,cw,ch);cc.drawImage(originalImage,0,0,cw,ch);
+  var data=cc.getImageData(0,0,cw,ch).data;
+  var minX=cw,minY=ch,maxX=-1,maxY=-1;
+  for(var y=0;y<ch;y++)for(var x=0;x<cw;x++){
+   if(data[(y*cw+x)*4+3]>20){if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}
+  }
+  if(maxX<minX || maxY<minY)return obj;
+  // A one-pixel visual margin avoids cutting antialiased edges.
+  minX=Math.max(0,minX-1);minY=Math.max(0,minY-1);
+  maxX=Math.min(cw,maxX+2);maxY=Math.min(ch,maxY+2);
+  if(minX===0&&minY===0&&maxX===cw&&maxY===ch)return obj;
+  var nx=vals[0]+minX/cw*w,ny=vals[1]+minY/ch*h;
+  var nw=(maxX-minX)/cw*w,nh=(maxY-minY)/ch*h;
+  if(!(nw>0&&nh>0))return obj;
+  return {inner:obj.inner,width:nw,height:nh,viewBox:[nx,ny,nw,nh].map(function(z){return Number(z.toFixed(6));}).join(' ')};
+ }catch(e){return obj;}
+}
+/* Monochrome SVG logo follows the QR foreground. Keep true holes, opacity,
+   strokes and light counter-shapes intact. SVG remains vector in Figma/SVG. */
+function paintValue(n,prop){
+ for(var at=n;at&&at.nodeType===1;at=at.parentElement){
+  var v=at.style&&at.style.getPropertyValue(prop);
+  if(v)return v.trim();
+  v=at.getAttribute(prop);
+  if(v)return v.trim();
+ }
+ return prop==='fill'?'black':'none';
+}
+function isWhitePaint(v){
+ v=String(v||'').replace(/\s+/g,'').toLowerCase();
+ return v==='#fff'||v==='#ffffff'||v==='white'||v==='rgb(255,255,255)'||v==='rgb(100%,100%,100%)';
+}
+function tintLogo(logo,fg){
+ if(!logo)return null;
+ var doc=new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">'+logo.inner+'</svg>','image/svg+xml');
+ var root=doc.documentElement;
+ var items=Array.prototype.slice.call(root.querySelectorAll('path,rect,circle,ellipse,polygon,polyline,line,text,tspan,use'));
+ // Referenced vectors inside <defs>/<symbol> must also be recolored.
+ // Ignore clipping/masking shapes because they control transparency, not visible paint.
+ var painted=items.filter(function(n){return !n.closest('clipPath,mask,pattern,marker');});
+ var hasDark=painted.some(function(n){
+  var v=paintValue(n,'fill');
+  return v!=='none'&&v!=='transparent'&&!isWhitePaint(v);
+ });
+ var target=VQR.hex(fg);
+ painted.forEach(function(n){
+  var fill=paintValue(n,'fill'),stroke=paintValue(n,'stroke');
+  var isLine=n.localName.toLowerCase()==='line';
+  if(!isLine&&fill!=='none'&&fill!=='transparent'&&!(hasDark&&isWhitePaint(fill))){
+   n.setAttribute('fill',target);
+   n.style.setProperty('fill',target,'important');
+  }
+  if(stroke!=='none'&&stroke!=='transparent'&&!(hasDark&&isWhitePaint(stroke))){
+   n.setAttribute('stroke',target);
+   n.style.setProperty('stroke',target,'important');
+  }
+ });
+ var inner=new XMLSerializer().serializeToString(root).replace(/^<svg[^>]*>/i,'').replace(/<\/svg>\s*$/i,'');
+ return {inner:inner,width:logo.width,height:logo.height,viewBox:logo.viewBox};
+}
+function getTintedLogo(){
+ if(!state.logo)return null;
+ if(!state.tintedLogo||state.tintedLogo.source!==state.logo||state.tintedLogo.color!==state.fg){
+  state.tintedLogo={source:state.logo,color:state.fg,result:tintLogo(state.logo,state.fg)};
+ }
+ return state.tintedLogo.result;
+}
+function refreshTintedLogo(){
+ var token=++state.tintToken;
+ state.logoImage=null;
+ if(!state.logo){state.tintReady=Promise.resolve();requestDraw();return state.tintReady;}
+ var colorized;
+ try{colorized=getTintedLogo();}catch(e){state.tintReady=Promise.resolve();note('Ошибка цвета SVG: '+(e.message||String(e)));requestDraw();return state.tintReady;}
+ state.tintReady=new Promise(function(resolve){
+  openLogoImage(colorized,function(img){if(token===state.tintToken){state.logoImage=img;requestDraw();}resolve();},
+    function(){if(token===state.tintToken){note('Не удалось перекрасить SVG-логотип.');requestDraw();}resolve();});
+ });
+ return state.tintReady;
+}
+function openLogoImage(obj,onDone,onError){
+ try{
+  var data='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="'+obj.viewBox.replace(/[^-0-9.eE ,+]/g,'')+'">'+obj.inner+'</svg>';
+  var blob=new Blob([data],{type:'image/svg+xml'}),url=URL.createObjectURL(blob),img=new Image();
+  img.onload=function(){URL.revokeObjectURL(url);onDone(img);};
+  img.onerror=function(){URL.revokeObjectURL(url);onError();};
+  img.src=url;
+ }catch(e){onError();}
+}
+function useImportedLogo(raw,name,token){
+ if(token!==state.logoImportToken)return;
+ var initial=cleanSVG(raw);
+ openLogoImage(initial,function(img){
+  if(token!==state.logoImportToken)return;
+  var cropped=autoTrimLogo(initial,img);
+  if(cropped===initial){finish(initial);return;}
+  openLogoImage(cropped,function(){finish(cropped);},function(){finish(initial);});
+  function finish(obj){
+   if(token!==state.logoImportToken)return;
+   state.logo=obj;
+   state.tintedLogo=null;
+   el('logoFilename').textContent=name;
+   refreshTintedLogo();slowCompute();
+  }
+ },function(){if(token===state.logoImportToken)note('Не удалось открыть SVG.');});
+}
+
+function ensureFresh(){var text=currentText();if(!text)throw new Error(state.lang==='ru'?'Введите данные для QR.':'Enter QR content.');var hole=normalizedHole();var next=VQR.fit(text,hole.w,hole.h,state.base);state.base=next.base;state.model=next.m;requestDraw();return next.m;}
+function fullSvg(forceTransparent){var model=ensureFresh();return VQR.svg(model,1000,state.fg,state.bg,state.mode==='logo'?getTintedLogo():null,!!forceTransparent||state.noBackground);}
+function download(blob,name){var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
+function exportSVG(){try{download(new Blob([fullSvg()],{type:'image/svg+xml;charset=utf-8'}),'vector-qr.svg');}catch(e){note(e.message);}}
+function exportPNG(){
+ // A color change can start a new image load while the previous one is pending.
+ // Export only after the CURRENT logo image has finished rasterizing.
+ function waitForCurrentTint(){
+  var pending=state.tintReady;
+  return Promise.resolve(pending).then(function(){
+   return state.tintReady===pending?null:waitForCurrentTint();
+  });
+ }
+ waitForCurrentTint().then(function(){
+  try{
+   if(state.mode==='logo'&&state.logo&&!state.logoImage)
+    throw new Error('Логотип не удалось подготовить для PNG. Экспорт отменён.');
+   var model=ensureFresh(),canvas=document.createElement('canvas');
+   canvas.width=canvas.height=1000;
+   var transparent=!!state.noBackground;
+   renderCanvas(canvas,canvas.getContext('2d',{alpha:transparent}),model,!transparent);
+   canvas.toBlob(function(blob){
+    if(blob)download(blob,'vector-qr.png');
+    else note(state.lang==='ru'?'Не удалось экспортировать PNG.':'Failed to export PNG.');
+   },'image/png');
+  }catch(e){note(e.message||String(e));}
+ });
+}
+window.addEventListener('message',function(e){var m=e.data&&e.data.pluginMessage;if(m&&m.type==='inserted')note(state.lang==='ru'?'QR добавлен на макет.':'QR added to canvas.');if(m&&m.type==='error')note(m.message);});
+// Inputs and view update instantly. Encoding only runs after text settles; never per keystroke.
+el('content').addEventListener('input',function(e){state.value=e.target.value;slowCompute();});
+el('clear').addEventListener('click',function(){el('content').value='';state.value='';slowCompute();el('content').focus();});
+Array.prototype.forEach.call(document.querySelectorAll('[data-type]'),function(b){b.addEventListener('click',function(){document.querySelector('.tabs .active').classList.remove('active');b.classList.add('active');state.type=b.dataset.type;state.value='';el('content').value='';translate(state.lang);slowCompute();el('content').focus();});});
+el('ru').addEventListener('click',function(){translate('ru');});el('en').addEventListener('click',function(){translate('en');});
+
+el('noBackgroundToggle').addEventListener('click',function(){state.noBackground=!state.noBackground;el('noBackgroundToggle').classList.toggle('on',state.noBackground);el('noBackgroundToggle').setAttribute('aria-checked',String(state.noBackground));requestDraw();});
+el('logoToggle').addEventListener('click',toggleLogo);el('holeToggle').addEventListener('click',toggleHole);
+// Keep the original Figma slider appearance: black progress up to the thumb,
+// light-gray unfilled track. Use the actual rendered track width for pixel alignment.
+function syncRangeFill(input){
+ var min=Number(input.min)||0,max=Number(input.max)||100;
+ var progress=Math.max(0,Math.min(1,(Number(input.value)-min)/Math.max(1,max-min)));
+ var width=input.clientWidth;
+ var fill=12+progress*Math.max(0,width-24); // 24px thumb, 12px to its centre
+ input.style.setProperty('--range-fill',fill.toFixed(2)+'px');
+}
+function syncRangeFills(){['logoScale','holeW','holeH'].forEach(function(id){syncRangeFill(el(id));});}
+el('logoScale').addEventListener('input',function(e){state.logoPercent=+e.target.value;el('logoOutput').textContent=state.logoPercent+'%';syncRangeFill(e.target);updateFast();});
+['holeW','holeH'].forEach(function(id){el(id).addEventListener('input',function(e){var field=id==='holeW'?'holeW':'holeH';state[field]=+e.target.value;el(id+'Output').textContent=state[field]+'%';clampHole(id==='holeW'?'w':'h');syncRangeFills();updateFast();});});
+el('chooseLogo').addEventListener('click',function(){el('fileInput').click();});
+el('fileInput').addEventListener('change',function(e){
+ var f=e.target.files&&e.target.files[0];if(!f)return;
+ var token=++state.logoImportToken;
+ if(f.size>500000)note('Размер SVG не должен превышать 500 КБ.');
+ else f.text().then(function(raw){
+  if(token!==state.logoImportToken)return;
+  try{useImportedLogo(raw,f.name,token);}catch(err){if(token===state.logoImportToken)note(err.message||'Ошибка SVG');}
+ },function(){if(token===state.logoImportToken)note('Не удалось прочитать файл SVG.');});
+ e.target.value='';
+});
+['fg','bg'].forEach(function(k){el(k+'Pick').addEventListener('input',function(e){setColor(k,e.target.value);});el(k+'Hex').addEventListener('input',function(e){if(validColor(e.target.value))setColor(k,e.target.value,true);});el(k+'Hex').addEventListener('blur',function(e){e.target.value=state[k];});});
+el('insert').addEventListener('click',function(){try{parent.postMessage({pluginMessage:{type:'insert',svg:fullSvg(true),foreground:state.fg,background:state.noBackground?null:state.bg,mode:state.mode,size:1000}},'*');}catch(e){note(e.message);}});
+el('exportSvg').addEventListener('click',exportSVG);el('exportPng').addEventListener('click',exportPNG);
+
+// Auto-size without listening to individual inputs: no expensive work while typing.
+var _lastWindowRequest='';
+function requestAdaptiveWindow(){
+ var sw=0,sh=0;
+ try{sw=window.screen&&window.screen.availWidth||0;sh=window.screen&&window.screen.availHeight||0;}catch(e){}
+ if(!(sw>0))sw=window.innerWidth;
+ if(!(sh>0))sh=window.innerHeight+100;
+ var width=Math.max(300,Math.min(480,Math.floor(sw-36)));
+ var height=Math.max(400,Math.min(1334,Math.floor(sh-100)));
+ var key=width+'x'+height;
+ if(key===_lastWindowRequest)return;
+ _lastWindowRequest=key;
+ try{parent.postMessage({pluginMessage:{type:'adapt-size',width:width,height:height}},'*');}catch(e){}
+}
+// Fit all of the original controls within the real iframe viewport. Never scroll.
+var _fitQueued=false;
+function fitWithoutScroll(){
+ var app=el('app');if(!app)return;
+ // Measurements are in the original Figma coordinate system, even when the
+ // window is smaller. A single transform avoids independently rounded zoom
+ // and @media styles moving switches, sliders and footer out of alignment.
+ var naturalHeight=app.scrollHeight;
+ var naturalWidth=480;
+ var availableHeight=Math.max(1,window.innerHeight-2);
+ var availableWidth=Math.max(1,window.innerWidth-2);
+ var factor=Math.min(1,availableHeight/Math.max(1,naturalHeight),availableWidth/naturalWidth);
+ factor=Math.max(.1,Math.floor(factor*10000)/10000);
+ var left=Math.max(0,(availableWidth-naturalWidth*factor)/2);
+ app.style.setProperty('--vqr-scale',String(factor));
+ app.style.setProperty('--vqr-left',left.toFixed(3)+'px');
+}
+function queueFit(){if(_fitQueued)return;_fitQueued=true;requestAnimationFrame(function(){_fitQueued=false;fitWithoutScroll();});}
+window.addEventListener('resize',function(){queueFit();requestAdaptiveWindow();},{passive:true});
+window.addEventListener('orientationchange',function(){queueFit();requestAdaptiveWindow();},{passive:true});
+requestAnimationFrame(function(){requestAdaptiveWindow();queueFit();});
+translate('ru');setMode('logo');syncRangeFills();slowCompute();
+})();
+</script>
+</body></html>
