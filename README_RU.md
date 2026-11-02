@@ -1,4 +1,4 @@
-# Vector QR 0.1 — генератор QR-кодов для Figma
+# QR generator 0.1 — генератор QR-кодов для Figma
 
 **Офлайн-генератор векторных QR-кодов**. Создавайте редактируемые QR-коды на холсте Figma, экспортируйте SVG или PNG с прозрачным фоном.
 
@@ -10,7 +10,7 @@
 2. Сохраните `manifest.json`, `code.js` и `ui.html` в одной папке.
 3. В **Figma Desktop** откройте **Plugins → Development → Import plugin from manifest**.
 4. Выберите `manifest.json`.
-5. Запустите **QR генератор — Vector QR 0.1** из раздела Development.
+5. Запустите **QR generator** из раздела Development.
 
 После изменений в GitHub нужно обновить локальные файлы и перезапустить плагин. Прямого подключения Development Plugin по URL GitHub нет.
 
