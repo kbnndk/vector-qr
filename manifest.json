@@ -1,5 +1,5 @@
 {
-  "name": "QR генератор — Vector QR 0.1",
+  "name": "QR generator",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -11,5 +11,6 @@
     "allowedDomains": [
       "none"
     ]
-  }
+  },
+  "id": "1699029173941233989"
 }
